@@ -2,7 +2,7 @@
   "domain": "wind_power",
   "name": "Wind Power Estimator",
   "version": "0.1.0",
-  "documentation": "https://github.com/lcorsaro/ha_wind_power",
+  "documentation": "https://github.com/drake69/ha_wind_power",
   "requirements": [],
   "dependencies": ["recorder"],
   "codeowners": [],
