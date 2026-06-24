@@ -1,11 +1,19 @@
 [project]
 name = "ha-wind-power"
 version = "0.1.0"
-description = "Add your description here"
-requires-python = ">=3.13"
-dependencies = [
-    "pandas>=3.0.2",
-    "plotly>=6.6.0",
-    "requests>=2.33.1",
-    "streamlit>=1.56.0",
+description = "HACS integration — wind energy production estimator for Home Assistant"
+requires-python = ">=3.12"
+dependencies = []
+
+[dependency-groups]
+dev = [
+    "pytest>=8.0",
+    "pytest-asyncio>=0.23",
 ]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+pythonpath = ["."]
+
+[tool.ruff]
+line-length = 100

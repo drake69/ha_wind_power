@@ -1,0 +1,15 @@
+{
+  "config": {
+    "step": {
+      "user": {
+        "title": "Wind Power Estimator",
+        "description": "Configura il sensore di velocità del vento e i parametri ambientali. I modelli di turbina vengono caricati dal catalogo in turbines.py.",
+        "data": {
+          "wind_entity_id": "Sensore velocità vento",
+          "wind_unit": "Unità di misura del sensore",
+          "air_density": "Densità aria (kg/m³)"
+        }
+      }
+    }
+  }
+}
