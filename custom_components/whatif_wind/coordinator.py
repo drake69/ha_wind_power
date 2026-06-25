@@ -44,7 +44,7 @@ _LOGGER = logging.getLogger(__name__)
 _STORE_VERSION = 1
 
 
-class WindPowerCoordinator(DataUpdateCoordinator):
+class WhatIfWindCoordinator(DataUpdateCoordinator):
     """Seed retrospettivo (InfluxDB) + accumulo in avanti (recorder)."""
 
     def __init__(self, hass: HomeAssistant, entry) -> None:

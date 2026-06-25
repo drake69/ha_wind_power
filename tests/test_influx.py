@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 
-from custom_components.wind_power.influx import parse_flux_csv
+from custom_components.whatif_wind.influx import parse_flux_csv
 
 # Risposta tipica annotata di InfluxDB /api/v2/query.
 FLUX_CSV = """#datatype,string,long,dateTime:RFC3339,double

@@ -1,4 +1,4 @@
-# Requisiti — wind_power HACS Integration
+# Requisiti — whatif_wind HACS Integration
 
 ## Obiettivo
 
@@ -18,7 +18,7 @@ Due percorsi alimentano la *stessa* serie (scelti nel config flow):
 - **Non ho pregressi** → *accumulo in avanti*: parte dal logger e, a ogni ciclo, estende
   la serie con i nuovi dati del recorder; il quadro annuale si completa nel tempo.
 
-La serie vive come **long-term statistics esterne** di HA (`wind_power:…`): compatte
+La serie vive come **long-term statistics esterne** di HA (`whatif_wind:…`): compatte
 (una riga per ora), aggregate automaticamente ora→giorno→mese→anno, e popolabili sia
 retrodatate (backfill) sia in append. Uno **Store** persiste il cursore temporale e i
 totali cumulativi, così l'accumulo riprende senza ricalcolare la storia e senza

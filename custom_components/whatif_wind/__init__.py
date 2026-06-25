@@ -1,4 +1,4 @@
-"""Wind Power Estimator — HACS integration."""
+"""WhatIfWind — HACS integration."""
 
 from __future__ import annotations
 
@@ -6,13 +6,13 @@ from homeassistant.config_entries import ConfigEntry
 from homeassistant.core import HomeAssistant
 
 from .const import DOMAIN
-from .coordinator import WindPowerCoordinator
+from .coordinator import WhatIfWindCoordinator
 
 PLATFORMS = ["sensor"]
 
 
 async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
-    coordinator = WindPowerCoordinator(hass, entry)
+    coordinator = WhatIfWindCoordinator(hass, entry)
     hass.data.setdefault(DOMAIN, {})[entry.entry_id] = coordinator
     await hass.config_entries.async_forward_entry_setups(entry, PLATFORMS)
     return True

@@ -1,4 +1,4 @@
-"""Sensori Wind Power Estimator."""
+"""Sensori WhatIfWind."""
 
 from __future__ import annotations
 
@@ -20,7 +20,7 @@ from homeassistant.helpers.restore_state import RestoreEntity
 from homeassistant.helpers.update_coordinator import CoordinatorEntity
 
 from .const import CONF_AIR_DENSITY, CONF_WIND_ENTITY, CONF_WIND_UNIT, DOMAIN
-from .coordinator import WindPowerCoordinator
+from .coordinator import WhatIfWindCoordinator
 from .power import compute_power, to_ms
 from .turbines import TURBINE_CATALOG
 
@@ -32,14 +32,14 @@ async def async_setup_entry(
     entry: ConfigEntry,
     async_add_entities: AddEntitiesCallback,
 ) -> None:
-    coordinator: WindPowerCoordinator = hass.data[DOMAIN][entry.entry_id]
+    coordinator: WhatIfWindCoordinator = hass.data[DOMAIN][entry.entry_id]
 
     entities: list[SensorEntity] = []
     for turbine in TURBINE_CATALOG:
-        entities.append(WindPowerCurrentSensor(hass, entry, turbine))
-        entities.append(WindPowerEnergySensor(coordinator, entry, turbine))
-        entities.append(WindPowerAEPSensor(coordinator, entry, turbine))
-        entities.append(WindPowerCapacityFactorSensor(coordinator, entry, turbine))
+        entities.append(WhatIfWindCurrentSensor(hass, entry, turbine))
+        entities.append(WhatIfWindEnergySensor(coordinator, entry, turbine))
+        entities.append(WhatIfWindAEPSensor(coordinator, entry, turbine))
+        entities.append(WhatIfWindCapacityFactorSensor(coordinator, entry, turbine))
 
     async_add_entities(entities)
 
@@ -61,7 +61,7 @@ def _device_info(entry: ConfigEntry, turbine: dict[str, Any]) -> DeviceInfo:
 # ─── Potenza istantanea ──────────────────────────────────────────────────────
 
 
-class WindPowerCurrentSensor(SensorEntity):
+class WhatIfWindCurrentSensor(SensorEntity):
     """
     Potenza stimata in tempo reale (W).
 
@@ -131,7 +131,7 @@ class _DailyCoordinatorSensor(CoordinatorEntity, RestoreEntity, SensorEntity):
 
     def __init__(
         self,
-        coordinator: WindPowerCoordinator,
+        coordinator: WhatIfWindCoordinator,
         entry: ConfigEntry,
         turbine: dict[str, Any],
     ) -> None:
@@ -158,7 +158,7 @@ class _DailyCoordinatorSensor(CoordinatorEntity, RestoreEntity, SensorEntity):
         self.async_write_ha_state()
 
 
-class WindPowerEnergySensor(_DailyCoordinatorSensor):
+class WhatIfWindEnergySensor(_DailyCoordinatorSensor):
     """
     Energia potenziale stimata (kWh) sul periodo coperto dai dati di vento.
 
@@ -184,7 +184,7 @@ class WindPowerEnergySensor(_DailyCoordinatorSensor):
         return {"giorni_misurati": data.get("days_measured")}
 
 
-class WindPowerAEPSensor(_DailyCoordinatorSensor):
+class WhatIfWindAEPSensor(_DailyCoordinatorSensor):
     """
     AEP stimato (kWh/anno) — proiezione annua dell'energia simulata.
 
@@ -209,7 +209,7 @@ class WindPowerAEPSensor(_DailyCoordinatorSensor):
         return {"giorni_misurati": data.get("days_measured")}
 
 
-class WindPowerCapacityFactorSensor(_DailyCoordinatorSensor):
+class WhatIfWindCapacityFactorSensor(_DailyCoordinatorSensor):
     """
     Capacity factor (%) nel periodo misurato.
 

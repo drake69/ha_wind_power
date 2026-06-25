@@ -1,8 +1,8 @@
 {
-  "domain": "wind_power",
-  "name": "Wind Power Estimator",
+  "domain": "whatif_wind",
+  "name": "WhatIfWind",
   "version": "0.1.0",
-  "documentation": "https://github.com/drake69/ha_wind_power",
+  "documentation": "https://github.com/drake69/ha_whatif_wind",
   "requirements": [],
   "dependencies": ["recorder"],
   "codeowners": [],

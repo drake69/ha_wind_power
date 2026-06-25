@@ -1,4 +1,4 @@
-DOMAIN = "wind_power"
+DOMAIN = "whatif_wind"
 
 CONF_WIND_ENTITY = "wind_entity_id"
 CONF_WIND_UNIT = "wind_unit"

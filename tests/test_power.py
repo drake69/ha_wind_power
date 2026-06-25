@@ -8,13 +8,13 @@ from unittest.mock import MagicMock
 
 import pytest
 
-from custom_components.wind_power.power import (
+from custom_components.whatif_wind.power import (
     compute_power,
     compute_simulated_energy_kwh,
     detect_internal_unit,
     to_ms,
 )
-from custom_components.wind_power.turbines import TURBINE_CATALOG
+from custom_components.whatif_wind.turbines import TURBINE_CATALOG
 
 # ─── to_ms ───────────────────────────────────────────────────────────────────
 

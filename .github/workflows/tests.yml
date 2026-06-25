@@ -29,7 +29,7 @@ jobs:
       - name: Run tests with coverage
         run: |
           python -m pytest tests/ -v \
-            --cov=custom_components/wind_power \
+            --cov=custom_components/whatif_wind \
             --cov-report=xml \
             --cov-report=term-missing
 

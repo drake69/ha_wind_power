@@ -1,7 +1,7 @@
 """Costruzione e scrittura della serie storica come long-term statistics ESTERNE.
 
 La serie giorno/mese/anno NON è energia reale: è una stima di produzione
-potenziale. Per questo vive come statistics esterne (`wind_power:...`) e non
+potenziale. Per questo vive come statistics esterne (`whatif_wind:...`) e non
 come entità `device_class=energy` — così non finisce nella dashboard energia
 di HA come fosse un contatore vero.
 

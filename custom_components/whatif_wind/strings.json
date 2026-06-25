@@ -2,7 +2,7 @@
   "config": {
     "step": {
       "user": {
-        "title": "Wind Power Estimator",
+        "title": "WhatIfWind",
         "description": "Configure the wind-speed sensor and the environmental parameters. The unit of measurement is detected from the sensor; turbine models are loaded from the catalog in turbines.py.",
         "data": {
           "wind_entity_id": "Wind-speed sensor",

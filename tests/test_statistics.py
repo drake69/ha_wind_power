@@ -6,13 +6,13 @@ from datetime import datetime, timedelta, timezone
 
 import pytest
 
-from custom_components.wind_power.power import compute_power, to_ms
-from custom_components.wind_power.statistics import (
+from custom_components.whatif_wind.power import compute_power, to_ms
+from custom_components.whatif_wind.statistics import (
     build_hourly_energy,
     statistic_id,
     to_cumulative,
 )
-from custom_components.wind_power.turbines import TURBINE_CATALOG
+from custom_components.whatif_wind.turbines import TURBINE_CATALOG
 
 TURBINE = TURBINE_CATALOG[0]
 AIR = 1.225
@@ -65,4 +65,4 @@ def test_to_cumulative_running_sum():
 
 
 def test_statistic_id_format():
-    assert statistic_id("abc", "savonius") == "wind_power:abc_savonius_energy"
+    assert statistic_id("abc", "savonius") == "whatif_wind:abc_savonius_energy"

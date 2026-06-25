@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import pytest
 
-from custom_components.wind_power.turbines import TURBINE_CATALOG
+from custom_components.whatif_wind.turbines import TURBINE_CATALOG
 
 
 def test_catalog_non_vuoto():

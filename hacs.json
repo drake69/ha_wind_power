@@ -1,5 +1,5 @@
 {
-  "name": "Wind Power Estimator",
+  "name": "WhatIfWind",
   "render_readme": true,
   "homeassistant": "2023.1.0"
 }

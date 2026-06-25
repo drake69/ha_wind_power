@@ -21,9 +21,9 @@ import ast
 import json
 from pathlib import Path
 
-from custom_components.wind_power import const
+from custom_components.whatif_wind import const
 
-_COMPONENT = Path(__file__).resolve().parent.parent / "custom_components" / "wind_power"
+_COMPONENT = Path(__file__).resolve().parent.parent / "custom_components" / "whatif_wind"
 _CONFIG_FLOW = _COMPONENT / "config_flow.py"
 _BASE_JSON = _COMPONENT / "strings.json"
 

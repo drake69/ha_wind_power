@@ -1,4 +1,4 @@
-"""Config flow per Wind Power Estimator.
+"""Config flow per WhatIfWind.
 
 Albero dichiarativo: l'utente dichiara la propria situazione e l'integrazione
 si auto-instrada verso uno dei due percorsi (stesso obiettivo: analisi 365 gg).
@@ -36,7 +36,7 @@ from .const import (
 from .power import detect_internal_unit
 
 
-class WindPowerConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
+class WhatIfWindConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
     VERSION = 1
 
     def __init__(self) -> None:
@@ -153,6 +153,6 @@ class WindPowerConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
 
     def _create_entry(self):
         return self.async_create_entry(
-            title="Wind Power Estimator",
+            title="WhatIfWind",
             data=self._data,
         )
