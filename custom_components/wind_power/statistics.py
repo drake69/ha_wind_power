@@ -9,9 +9,10 @@ Le statistics esterne con `has_sum` reggono sia il backfill retrodatato
 (`async_add_external_statistics` accetta start nel passato) sia l'append in
 avanti: stessa `statistic_id`, somma cumulativa che continua a crescere.
 """
+
 from __future__ import annotations
 
-from datetime import datetime, timedelta
+from datetime import datetime
 
 from .const import DOMAIN, MAX_GAP_SECONDS
 from .power import compute_power, to_ms
@@ -105,10 +106,7 @@ async def async_write_statistics(
         statistic_id=stat_id,
         unit_of_measurement="kWh",
     )
-    stats = [
-        StatisticData(start=hour, state=value, sum=value)
-        for hour, value in cumulative
-    ]
+    stats = [StatisticData(start=hour, state=value, sum=value) for hour, value in cumulative]
     async_add_external_statistics(hass, metadata, stats)
 
 

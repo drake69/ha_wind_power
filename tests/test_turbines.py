@@ -1,4 +1,5 @@
 """Validazione del catalogo turbine in turbines.py."""
+
 from __future__ import annotations
 
 import pytest
@@ -13,8 +14,14 @@ def test_catalog_non_vuoto():
 @pytest.mark.parametrize("turbine", TURBINE_CATALOG, ids=lambda t: t["id"])
 def test_campi_obbligatori(turbine):
     required = {
-        "id", "name", "type", "mode",
-        "rated_power_W", "cut_in_ms", "rated_ms", "cut_out_ms",
+        "id",
+        "name",
+        "type",
+        "mode",
+        "rated_power_W",
+        "cut_in_ms",
+        "rated_ms",
+        "cut_out_ms",
     }
     missing = required - turbine.keys()
     assert not missing, f"Campi mancanti: {missing}"
@@ -59,9 +66,7 @@ def test_geometria_vawt_parametrica(turbine):
 @pytest.mark.parametrize("turbine", TURBINE_CATALOG, ids=lambda t: t["id"])
 def test_cp_nel_range_betz(turbine):
     if turbine["mode"] == "parametric":
-        assert 0 < turbine["cp"] <= 0.593, (
-            f"Cp={turbine['cp']} fuori dal range fisico (0, 0.593]"
-        )
+        assert 0 < turbine["cp"] <= 0.593, f"Cp={turbine['cp']} fuori dal range fisico (0, 0.593]"
 
 
 @pytest.mark.parametrize("turbine", TURBINE_CATALOG, ids=lambda t: t["id"])

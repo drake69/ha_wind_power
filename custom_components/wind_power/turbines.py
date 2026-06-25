@@ -15,6 +15,7 @@ Tipi supportati:
   VAWT — asse verticale (Savonius, Darrieus, H-rotor, elicoidale).
           Area = diameter_m × height_m
 """
+
 from __future__ import annotations
 
 TURBINE_CATALOG: list[dict] = [
@@ -34,11 +35,11 @@ TURBINE_CATALOG: list[dict] = [
         # Savonius: drag-based, Cp basso ma cut-in molto basso
         "cp": 0.18,
         "losses": {
-            "kw": 0.02,   # perdite scia
+            "kw": 0.02,  # perdite scia
             "km": 0.005,  # meccaniche
             "ke": 0.015,  # elettriche
-            "ke_t": 0.03, # trasmissione
-            "kt": 0.03,   # downtime
+            "ke_t": 0.03,  # trasmissione
+            "kt": 0.03,  # downtime
         },
     },
     {
@@ -56,11 +57,11 @@ TURBINE_CATALOG: list[dict] = [
         # Curva di esempio: [velocità m/s, potenza W]
         # Sostituire con i dati reali della scheda tecnica del produttore
         "power_curve": [
-            [0.0,   0],
-            [1.0,   0],
-            [2.0,   0],
-            [2.5,  20],
-            [3.0,  50],
+            [0.0, 0],
+            [1.0, 0],
+            [2.0, 0],
+            [2.5, 20],
+            [3.0, 50],
             [4.0, 120],
             [5.0, 220],
             [6.0, 370],

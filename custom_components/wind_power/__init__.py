@@ -1,4 +1,5 @@
 """Wind Power Estimator — HACS integration."""
+
 from __future__ import annotations
 
 from homeassistant.config_entries import ConfigEntry

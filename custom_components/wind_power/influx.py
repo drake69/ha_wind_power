@@ -9,6 +9,7 @@ compromesso voluto: la potenza va come v³ (convessa), quindi l'oraria è la
 risoluzione più fine che ha senso pre-mediare senza sottostimare in modo
 sensibile, e tiene leggero un anno di dati.
 """
+
 from __future__ import annotations
 
 from dataclasses import dataclass

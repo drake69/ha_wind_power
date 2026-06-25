@@ -1,4 +1,5 @@
 """Sensori Wind Power Estimator."""
+
 from __future__ import annotations
 
 import logging
@@ -58,6 +59,7 @@ def _device_info(entry: ConfigEntry, turbine: dict[str, Any]) -> DeviceInfo:
 
 
 # ─── Potenza istantanea ──────────────────────────────────────────────────────
+
 
 class WindPowerCurrentSensor(SensorEntity):
     """
@@ -119,6 +121,7 @@ class WindPowerCurrentSensor(SensorEntity):
 
 
 # ─── Sensori giornalieri (via coordinator) ───────────────────────────────────
+
 
 class _DailyCoordinatorSensor(CoordinatorEntity, RestoreEntity, SensorEntity):
     """Base per i sensori aggiornati una volta al giorno dal coordinator."""

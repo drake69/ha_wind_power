@@ -1,0 +1,152 @@
+name: Security
+
+on:
+  push:
+    branches: [master]
+  pull_request:
+    branches: [master]
+
+permissions:
+  contents: read
+
+jobs:
+  bandit:
+    name: Bandit Static Analysis
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+
+      - name: Set up Python 3.12
+        uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1 # v6.3.0
+        with:
+          python-version: "3.12"
+
+      - name: Install Bandit
+        run: pip install bandit
+
+      - name: Run Bandit on integration code
+        run: |
+          bandit -r custom_components/wind_power/ \
+            -f json -o bandit-report.json \
+            --severity-level medium \
+            --confidence-level medium \
+            || true
+
+      - name: Display Bandit results
+        run: |
+          bandit -r custom_components/wind_power/ \
+            --severity-level medium \
+            --confidence-level medium
+
+      - name: Upload Bandit report
+        if: always()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: bandit-report
+          path: bandit-report.json
+
+  forbidden-patterns:
+    name: Forbidden Pattern Guard
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+
+      - name: Check for dangerous function calls
+        run: |
+          echo "=== Checking for forbidden patterns in integration code ==="
+          FAILED=0
+
+          # eval() / exec() — arbitrary code execution
+          if grep -rn 'eval\s*(' custom_components/wind_power/ --include='*.py'; then
+            echo "::error::FORBIDDEN: eval() found — risk of arbitrary code execution"
+            FAILED=1
+          fi
+          if grep -rn 'exec\s*(' custom_components/wind_power/ --include='*.py'; then
+            echo "::error::FORBIDDEN: exec() found — risk of arbitrary code execution"
+            FAILED=1
+          fi
+
+          # compile() with exec/eval mode
+          if grep -rn 'compile\s*(' custom_components/wind_power/ --include='*.py' | grep -v '# safe:'; then
+            echo "::warning::compile() found — verify it is not used for code execution"
+          fi
+
+          # subprocess / os.system / os.popen — shell injection
+          if grep -rn 'subprocess' custom_components/wind_power/ --include='*.py'; then
+            echo "::error::FORBIDDEN: subprocess module found — risk of shell injection"
+            FAILED=1
+          fi
+          if grep -rn 'os\.system\s*(' custom_components/wind_power/ --include='*.py'; then
+            echo "::error::FORBIDDEN: os.system() found — risk of shell injection"
+            FAILED=1
+          fi
+          if grep -rn 'os\.popen\s*(' custom_components/wind_power/ --include='*.py'; then
+            echo "::error::FORBIDDEN: os.popen() found — risk of shell injection"
+            FAILED=1
+          fi
+
+          # pickle / marshal — unsafe deserialization
+          if grep -rn 'import pickle\|import marshal\|import shelve' custom_components/wind_power/ --include='*.py'; then
+            echo "::error::FORBIDDEN: unsafe deserialization module found (pickle/marshal/shelve)"
+            FAILED=1
+          fi
+
+          # __import__ — dynamic import (code injection vector)
+          if grep -rn '__import__\s*(' custom_components/wind_power/ --include='*.py'; then
+            echo "::error::FORBIDDEN: __import__() found — risk of dynamic code loading"
+            FAILED=1
+          fi
+
+          # importlib with user input patterns
+          if grep -rn 'importlib\.import_module' custom_components/wind_power/ --include='*.py'; then
+            echo "::warning::importlib.import_module() found — verify no user input reaches this call"
+          fi
+
+          # open() with write mode outside known safe patterns
+          if grep -rn "open\s*(" custom_components/wind_power/ --include='*.py' | grep -v '# safe:' | grep -v 'test'; then
+            echo "::warning::open() found — verify file paths are not user-controlled"
+          fi
+
+          # requests / urllib with user-controlled URLs
+          if grep -rn 'import requests\|import urllib' custom_components/wind_power/ --include='*.py'; then
+            echo "::warning::HTTP library found — verify URLs are not user-controlled (SSRF risk)"
+          fi
+
+          # Template injection — Jinja2 from_string
+          if grep -rn 'from_string\|Environment(' custom_components/wind_power/ --include='*.py'; then
+            echo "::warning::Jinja2 template construction found — verify no user input in templates"
+          fi
+
+          # SQL patterns (unlikely in HA but guard anyway)
+          if grep -rn 'execute\s*(' custom_components/wind_power/ --include='*.py' | grep -i 'sql\|cursor\|query'; then
+            echo "::error::FORBIDDEN: SQL execution pattern found — risk of SQL injection"
+            FAILED=1
+          fi
+
+          if [ $FAILED -eq 0 ]; then
+            echo ""
+            echo "All checks passed — no forbidden patterns found."
+          else
+            echo ""
+            echo "FAILED — forbidden patterns detected. See errors above."
+            exit 1
+          fi
+
+  codeql:
+    name: CodeQL Analysis
+    runs-on: ubuntu-latest
+    permissions:
+      security-events: write
+    steps:
+      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+
+      - name: Initialize CodeQL
+        uses: github/codeql-action/init@8aad20d150bbac5944a9f9d289da16a4b0d87c1e # v4.36.2
+        with:
+          languages: python
+          queries: security-and-quality
+
+      - name: Perform CodeQL Analysis
+        uses: github/codeql-action/analyze@8aad20d150bbac5944a9f9d289da16a4b0d87c1e # v4.36.2
+        with:
+          category: "/language:python"

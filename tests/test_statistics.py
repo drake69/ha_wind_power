@@ -1,4 +1,5 @@
 """Test per la costruzione della serie statistics (funzioni pure)."""
+
 from __future__ import annotations
 
 from datetime import datetime, timedelta, timezone

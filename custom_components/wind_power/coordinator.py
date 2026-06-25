@@ -11,6 +11,7 @@ dipendere dalla retention del recorder oltre il gap fra due cicli.
 La serie vive come statistics ESTERNE (vedi statistics.py): è una stima di
 produzione potenziale, non energia reale, e non finisce nella dashboard energia.
 """
+
 from __future__ import annotations
 
 import logging

@@ -1,7 +1,7 @@
 """Test per il parsing della risposta CSV annotata di Flux (funzione pura)."""
+
 from __future__ import annotations
 
-from datetime import timezone
 
 from custom_components.wind_power.influx import parse_flux_csv
 

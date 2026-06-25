@@ -1,4 +1,5 @@
 """Funzioni fisiche per la stima della potenza eolica."""
+
 from __future__ import annotations
 
 import math
@@ -64,7 +65,7 @@ def _power_parametric(turbine: dict[str, Any], wind_ms: float, air_density: floa
     else:  # VAWT
         area = turbine["diameter_m"] * turbine["height_m"]
 
-    p_wind = 0.5 * air_density * wind_ms ** 3 * area
+    p_wind = 0.5 * air_density * wind_ms**3 * area
     losses = turbine.get("losses", {})
     mu = (
         turbine["cp"]

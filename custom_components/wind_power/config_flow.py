@@ -7,6 +7,7 @@ si auto-instrada verso uno dei due percorsi (stesso obiettivo: analisi 365 gg).
     history   → "Hai uno storico locale?"  (InfluxDB | parto da adesso)
     influxdb  → parametri di connessione   (solo se ho scelto InfluxDB)
 """
+
 from __future__ import annotations
 
 import voluptuous as vol
@@ -64,9 +65,7 @@ class WindPowerConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
                         selector.EntitySelectorConfig(domain="sensor")
                     ),
                     vol.Required(CONF_AIR_DENSITY, default=1.225): selector.NumberSelector(
-                        selector.NumberSelectorConfig(
-                            min=0.5, max=2.0, step=0.001, mode="box"
-                        )
+                        selector.NumberSelectorConfig(min=0.5, max=2.0, step=0.001, mode="box")
                     ),
                 }
             ),
