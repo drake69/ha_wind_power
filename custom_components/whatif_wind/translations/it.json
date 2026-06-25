@@ -47,5 +47,13 @@
         }
       }
     }
+  },
+  "entity": {
+    "sensor": {
+      "current_power": { "name": "Potenza attuale" },
+      "simulated_energy": { "name": "Energia simulata" },
+      "estimated_aep": { "name": "AEP stimato" },
+      "capacity_factor": { "name": "Capacity factor" }
+    }
   }
 }
