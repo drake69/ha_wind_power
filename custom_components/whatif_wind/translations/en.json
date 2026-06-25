@@ -55,5 +55,57 @@
       "estimated_aep": { "name": "Estimated AEP" },
       "capacity_factor": { "name": "Capacity factor" }
     }
+  },
+  "options": {
+    "step": {
+      "init": {
+        "title": "WhatIfWind turbines",
+        "menu_options": {
+          "add": "Add a turbine",
+          "remove": "Remove a turbine"
+        }
+      },
+      "add": {
+        "title": "Add a turbine",
+        "data": {
+          "name": "Name",
+          "subtype": "Type"
+        },
+        "data_description": {
+          "name": "A label for this turbine; it becomes the device name.",
+          "subtype": "Sets the rotor axis and a default power coefficient (Cp). You only provide the geometry next."
+        }
+      },
+      "add_geometry": {
+        "title": "Turbine geometry",
+        "data": {
+          "blade_length_m": "Blade length (rotor radius, m)",
+          "diameter_m": "Rotor diameter (m)",
+          "height_m": "Rotor height (m)",
+          "rated_power_W": "Rated power (W)",
+          "cp": "Power coefficient Cp (advanced)",
+          "cut_in_ms": "Cut-in wind speed (m/s, advanced)",
+          "cut_out_ms": "Cut-out wind speed (m/s, advanced)",
+          "power_curve": "Power curve (advanced)"
+        },
+        "data_description": {
+          "rated_power_W": "Nameplate power; the estimate is capped at this value.",
+          "cp": "Pre-filled from the chosen type. Lower it for less efficient rotors; the physical maximum is 0.593.",
+          "power_curve": "Optional. One 'speed,power' pair per line (m/s, W) from the datasheet. If filled, it overrides the parametric model."
+        }
+      },
+      "remove": {
+        "title": "Remove turbines",
+        "data": {
+          "remove_ids": "Turbines to remove"
+        }
+      }
+    },
+    "error": {
+      "invalid_turbine": "Invalid turbine data. Check the geometry, rated power and (if used) the power curve."
+    },
+    "abort": {
+      "no_custom_turbines": "There are no custom turbines to remove yet."
+    }
   }
 }

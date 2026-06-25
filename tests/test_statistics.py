@@ -1,4 +1,4 @@
-"""Test per la costruzione della serie statistics (funzioni pure)."""
+"""Tests for the statistics series construction (pure functions)."""
 
 from __future__ import annotations
 
@@ -12,9 +12,22 @@ from custom_components.whatif_wind.statistics import (
     statistic_id,
     to_cumulative,
 )
-from custom_components.whatif_wind.turbines import TURBINE_CATALOG
 
-TURBINE = TURBINE_CATALOG[0]
+# Local fixture (the built-in catalog is now empty; turbines are user-defined).
+TURBINE = {
+    "id": "savonius",
+    "name": "Test Savonius",
+    "type": "VAWT",
+    "diameter_m": 0.8,
+    "height_m": 1.0,
+    "rated_power_W": 500,
+    "cut_in_ms": 1.5,
+    "rated_ms": 12.0,
+    "cut_out_ms": 45.0,
+    "mode": "parametric",
+    "cp": 0.18,
+    "losses": {"kw": 0.02, "km": 0.005, "ke": 0.015, "ke_t": 0.03, "kt": 0.03},
+}
 AIR = 1.225
 UNIT = "ms"
 T0 = datetime(2025, 1, 1, 10, 0, 0, tzinfo=timezone.utc)
@@ -27,8 +40,8 @@ class _S:
 
 
 def test_single_hour_constant_wind():
-    # Due campioni a 1h di distanza, vento costante → energia = P_watt / 1000 kWh,
-    # attribuita all'ora di inizio.
+    # Two samples 1h apart, constant wind → energy = P_watt / 1000 kWh,
+    # attributed to the start hour.
     wind = 8.0
     samples = [_S(T0, wind), _S(T0 + timedelta(hours=1), wind)]
     p_w = compute_power(TURBINE, to_ms(wind, UNIT), AIR)
@@ -37,12 +50,12 @@ def test_single_hour_constant_wind():
 
     assert len(hourly) == 1
     hour, kwh = hourly[0]
-    assert hour == T0  # già allineata all'ora
+    assert hour == T0  # already aligned to the hour
     assert kwh == pytest.approx(p_w / 1000.0, rel=1e-9)
 
 
 def test_gap_too_long_skipped():
-    # Intervallo oltre MAX_GAP_SECONDS (2h) → nessuna energia attribuita.
+    # Interval beyond MAX_GAP_SECONDS (2h) → no energy attributed.
     samples = [_S(T0, 8.0), _S(T0 + timedelta(hours=3), 8.0)]
     assert build_hourly_energy(samples, TURBINE, AIR, UNIT) == []
 
@@ -53,7 +66,7 @@ def test_non_numeric_state_resets():
         _S(T0 + timedelta(hours=1), "unavailable"),
         _S(T0 + timedelta(hours=2), 8.0),
     ]
-    # Solo il primo intervallo produce energia; il secondo parte da uno stato non valido.
+    # Only the first interval produces energy; the second starts from an invalid state.
     hourly = build_hourly_energy(samples, TURBINE, AIR, UNIT)
     assert all(kwh >= 0 for _, kwh in hourly)
 

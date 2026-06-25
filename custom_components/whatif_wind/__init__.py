@@ -15,7 +15,13 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     coordinator = WhatIfWindCoordinator(hass, entry)
     hass.data.setdefault(DOMAIN, {})[entry.entry_id] = coordinator
     await hass.config_entries.async_forward_entry_setups(entry, PLATFORMS)
+    # Reload when the user adds/removes a turbine from the options flow.
+    entry.async_on_unload(entry.add_update_listener(_async_update_listener))
     return True
+
+
+async def _async_update_listener(hass: HomeAssistant, entry: ConfigEntry) -> None:
+    await hass.config_entries.async_reload(entry.entry_id)
 
 
 async def async_unload_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
@@ -26,17 +32,19 @@ async def async_unload_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
 
 
 async def async_remove_entry(hass: HomeAssistant, entry: ConfigEntry) -> None:
-    """Disinstallazione pulita: rimuove statistics esterne e stato persistito.
+    """Clean uninstall: remove external statistics and the persisted state.
 
-    Le statistics e lo Store sopravvivono all'unload (vivono nel recorder e in
-    .storage): senza questa pulizia resterebbero orfani dopo la rimozione.
+    Statistics and the Store survive an unload (they live in the recorder and in
+    .storage): without this cleanup they would be orphaned after removal.
     """
     from homeassistant.helpers.storage import Store
 
+    from .const import CONF_CUSTOM_TURBINES
     from .statistics import async_clear_statistics, statistic_id
-    from .turbines import TURBINE_CATALOG
+    from .turbines import resolve_turbines
 
-    stat_ids = [statistic_id(entry.entry_id, t["id"]) for t in TURBINE_CATALOG]
+    turbines = resolve_turbines(entry.options.get(CONF_CUSTOM_TURBINES, []))
+    stat_ids = [statistic_id(entry.entry_id, t["id"]) for t in turbines]
     await async_clear_statistics(hass, stat_ids)
 
     store = Store(hass, 1, f"{DOMAIN}_{entry.entry_id}")

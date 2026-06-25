@@ -1,101 +1,161 @@
 """
-Turbine catalog.
+Turbine catalog and helpers for user-defined turbines.
 
-Aggiungi qui i modelli reali che stai valutando.
+Turbines are no longer hardcoded: the user adds them from Home Assistant
+(Settings → Devices & Services → WhatIfWind → Configure). Each turbine is stored
+in the config entry options and merged with the (currently empty) built-in
+catalog at runtime.
 
-mode "parametric": usa Cp + perdite. Adatto quando non si dispone della curva
-  del produttore. Le differenze di efficienza tra sottotipi (es. Savonius vs
-  H-rotor per i VAWT) si catturano modificando cp.
+mode "parametric": physics-based (swept area × Cp × air density × v³), capped at
+  the nameplate power. The user only provides the geometry; Cp comes from the
+  subtype default and can be overridden.
 
-mode "tabular": usa la tabella [velocità_ms, potenza_W] della scheda tecnica.
-  Più accurato; l'interpolazione è lineare tra i punti.
+mode "tabular": uses the [speed_ms, power_W] table from the datasheet. More
+  accurate; interpolation is linear between points.
 
-Tipi supportati:
-  HAWT — asse orizzontale. Area = π × blade_length_m²
-  VAWT — asse verticale (Savonius, Darrieus, H-rotor, elicoidale).
-          Area = diameter_m × height_m
+Supported types:
+  HAWT — horizontal axis. Area = π × blade_length_m²
+  VAWT — vertical axis (Savonius, Darrieus, H-rotor). Area = diameter_m × height_m
 """
 
 from __future__ import annotations
 
-TURBINE_CATALOG: list[dict] = [
-    {
-        "id": "vawt_savonius_500w",
-        "name": "VAWT Savonius 500 W",
-        "manufacturer": "Esempio",
-        "model": "Savonius 500",
-        "type": "VAWT",
-        "diameter_m": 0.8,
-        "height_m": 1.0,
-        "rated_power_W": 500,
-        "cut_in_ms": 1.5,
-        "rated_ms": 12.0,
-        "cut_out_ms": 45.0,
-        "mode": "parametric",
-        # Savonius: drag-based, Cp basso ma cut-in molto basso
-        "cp": 0.18,
-        "losses": {
-            "kw": 0.02,  # perdite scia
-            "km": 0.005,  # meccaniche
-            "ke": 0.015,  # elettriche
-            "ke_t": 0.03,  # trasmissione
-            "kt": 0.03,  # downtime
-        },
-    },
-    {
-        "id": "hawt_tripala_1kw",
-        "name": "HAWT Tripala 1 kW",
-        "manufacturer": "Esempio",
-        "model": "Tripala 1000",
-        "type": "HAWT",
-        "blade_length_m": 1.25,
-        "rated_power_W": 1000,
-        "cut_in_ms": 2.5,
-        "rated_ms": 11.0,
-        "cut_out_ms": 60.0,
-        "mode": "tabular",
-        # Curva di esempio: [velocità m/s, potenza W]
-        # Sostituire con i dati reali della scheda tecnica del produttore
-        "power_curve": [
-            [0.0, 0],
-            [1.0, 0],
-            [2.0, 0],
-            [2.5, 20],
-            [3.0, 50],
-            [4.0, 120],
-            [5.0, 220],
-            [6.0, 370],
-            [7.0, 530],
-            [8.0, 700],
-            [9.0, 850],
-            [10.0, 950],
-            [11.0, 1000],
-            [15.0, 1000],
-            [25.0, 1000],
-            [60.0, 1000],
-        ],
-    },
-    {
-        "id": "vawt_hrotor_2kw",
-        "name": "VAWT H-rotor 2 kW",
-        "manufacturer": "Esempio",
-        "model": "Giromill 2000",
-        "type": "VAWT",
-        "diameter_m": 1.5,
-        "height_m": 2.0,
-        "rated_power_W": 2000,
-        "cut_in_ms": 3.0,
-        "rated_ms": 12.0,
-        "cut_out_ms": 45.0,
-        "mode": "parametric",
-        # H-rotor/Darrieus: lift-based, Cp più alto del Savonius
-        "cp": 0.32,
-        "losses": {
-            "kw": 0.03,
-            "km": 0.005,
-            "ke": 0.015,
-            "ke_t": 0.05,
-            "kt": 0.03,
-        },
-    },
-]
+import re
+from typing import Any
+
+from .const import (
+    BETZ_LIMIT,
+    CONF_T_BLADE_LENGTH,
+    CONF_T_CP,
+    CONF_T_CUT_IN,
+    CONF_T_CUT_OUT,
+    CONF_T_DIAMETER,
+    CONF_T_HEIGHT,
+    CONF_T_NAME,
+    CONF_T_POWER_CURVE,
+    CONF_T_RATED_POWER,
+    CONF_T_SUBTYPE,
+    CP_DEFAULTS,
+    DEFAULT_CUT_IN_MS,
+    DEFAULT_CUT_OUT_MS,
+    DEFAULT_LOSSES,
+    SUBTYPE_TO_TYPE,
+)
+
+# No built-in turbines: the user defines their own from the UI.
+TURBINE_CATALOG: list[dict] = []
+
+
+def resolve_turbines(custom_turbines: list[dict] | None) -> list[dict]:
+    """Return the turbines available for a config entry: built-in + user-defined."""
+    return [*TURBINE_CATALOG, *(custom_turbines or [])]
+
+
+def slugify(name: str) -> str:
+    """Build a stable, filesystem/statistic-safe id from a turbine name."""
+    slug = re.sub(r"[^a-z0-9]+", "_", name.strip().lower()).strip("_")
+    return slug or "turbine"
+
+
+def unique_id(name: str, existing_ids: set[str] | None = None) -> str:
+    """Slugify `name` and disambiguate against `existing_ids` with a numeric suffix."""
+    existing = existing_ids or set()
+    base = slugify(name)
+    if base not in existing:
+        return base
+    i = 2
+    while f"{base}_{i}" in existing:
+        i += 1
+    return f"{base}_{i}"
+
+
+def parse_power_curve(text: str) -> list[list[float]]:
+    """Parse a multiline ``speed,power`` text into a sorted ``[[v, w], ...]`` curve.
+
+    Accepts comma- or whitespace-separated pairs, one per line; blank lines are
+    ignored. Raises ValueError on malformed input or fewer than two points.
+    """
+    curve: list[list[float]] = []
+    for lineno, raw in enumerate(text.splitlines(), start=1):
+        line = raw.strip()
+        if not line:
+            continue
+        parts = re.split(r"[\s,;]+", line)
+        if len(parts) != 2:
+            raise ValueError(f"Line {lineno}: expected 'speed,power', got {raw!r}")
+        try:
+            v, w = float(parts[0]), float(parts[1])
+        except ValueError as err:
+            raise ValueError(f"Line {lineno}: not a number — {raw!r}") from err
+        curve.append([v, w])
+    if len(curve) < 2:
+        raise ValueError("The power curve needs at least two points")
+    curve.sort(key=lambda pt: pt[0])
+    return curve
+
+
+def build_turbine(data: dict[str, Any], existing_ids: set[str] | None = None) -> dict:
+    """Build a validated turbine dict from options-flow input.
+
+    `data` carries the form fields (name, subtype, geometry, rated_power_W and
+    the optional advanced cp/cut-in/cut-out/power_curve). Raises ValueError on
+    invalid input.
+    """
+    name = str(data.get(CONF_T_NAME, "")).strip()
+    if not name:
+        raise ValueError("Name is required")
+
+    subtype = data.get(CONF_T_SUBTYPE)
+    if subtype not in SUBTYPE_TO_TYPE:
+        raise ValueError(f"Unknown subtype: {subtype!r}")
+    turbine_type = SUBTYPE_TO_TYPE[subtype]
+
+    rated_power_w = float(data.get(CONF_T_RATED_POWER, 0) or 0)
+    if rated_power_w <= 0:
+        raise ValueError("Rated power must be greater than 0")
+
+    cut_in = float(data.get(CONF_T_CUT_IN, DEFAULT_CUT_IN_MS))
+    cut_out = float(data.get(CONF_T_CUT_OUT, DEFAULT_CUT_OUT_MS))
+    if not 0 <= cut_in < cut_out:
+        raise ValueError("Cut-in must be ≥ 0 and lower than cut-out")
+
+    turbine: dict[str, Any] = {
+        "id": unique_id(name, existing_ids),
+        "name": name,
+        "manufacturer": "—",
+        "model": name,
+        "subtype": subtype,
+        "type": turbine_type,
+        "rated_power_W": rated_power_w,
+        "cut_in_ms": cut_in,
+        "cut_out_ms": cut_out,
+    }
+
+    # Geometry (the swept area depends on the rotor axis).
+    if turbine_type == "HAWT":
+        blade = float(data.get(CONF_T_BLADE_LENGTH, 0) or 0)
+        if blade <= 0:
+            raise ValueError("Blade length must be greater than 0")
+        turbine[CONF_T_BLADE_LENGTH] = blade
+    else:
+        diameter = float(data.get(CONF_T_DIAMETER, 0) or 0)
+        height = float(data.get(CONF_T_HEIGHT, 0) or 0)
+        if diameter <= 0 or height <= 0:
+            raise ValueError("Diameter and height must be greater than 0")
+        turbine[CONF_T_DIAMETER] = diameter
+        turbine[CONF_T_HEIGHT] = height
+
+    # A non-empty power curve switches the turbine to tabular mode.
+    curve_text = str(data.get(CONF_T_POWER_CURVE, "") or "").strip()
+    if curve_text:
+        turbine["mode"] = "tabular"
+        turbine["power_curve"] = parse_power_curve(curve_text)
+    else:
+        cp = float(data.get(CONF_T_CP) or CP_DEFAULTS[subtype])
+        if not 0 < cp <= BETZ_LIMIT:
+            raise ValueError(f"Cp must be in (0, {BETZ_LIMIT}]")
+        turbine["mode"] = "parametric"
+        turbine["cp"] = cp
+        turbine["losses"] = dict(DEFAULT_LOSSES)
+
+    return turbine

@@ -14,7 +14,6 @@ from custom_components.whatif_wind.power import (
     detect_internal_unit,
     to_ms,
 )
-from custom_components.whatif_wind.turbines import TURBINE_CATALOG
 
 # ─── to_ms ───────────────────────────────────────────────────────────────────
 
@@ -70,9 +69,64 @@ def test_detect_internal_unit_unknown(uom):
 
 # ─── compute_power: condizioni di confine ────────────────────────────────────
 
-SAVONIUS = TURBINE_CATALOG[0]  # VAWT Savonius, cut_in=1.5, cut_out=45
-HAWT_TAB = TURBINE_CATALOG[1]  # HAWT tabulare 1 kW
-HROTOR = TURBINE_CATALOG[2]  # VAWT H-rotor, cut_in=3.0
+# Local fixtures (the built-in catalog is now empty; turbines are user-defined).
+SAVONIUS = {  # VAWT Savonius, cut_in=1.5, cut_out=45
+    "id": "vawt_savonius_500w",
+    "name": "VAWT Savonius 500 W",
+    "type": "VAWT",
+    "diameter_m": 0.8,
+    "height_m": 1.0,
+    "rated_power_W": 500,
+    "cut_in_ms": 1.5,
+    "rated_ms": 12.0,
+    "cut_out_ms": 45.0,
+    "mode": "parametric",
+    "cp": 0.18,
+    "losses": {"kw": 0.02, "km": 0.005, "ke": 0.015, "ke_t": 0.03, "kt": 0.03},
+}
+HAWT_TAB = {  # HAWT tabular 1 kW
+    "id": "hawt_tripala_1kw",
+    "name": "HAWT 3-blade 1 kW",
+    "type": "HAWT",
+    "blade_length_m": 1.25,
+    "rated_power_W": 1000,
+    "cut_in_ms": 2.5,
+    "rated_ms": 11.0,
+    "cut_out_ms": 60.0,
+    "mode": "tabular",
+    "power_curve": [
+        [0.0, 0],
+        [1.0, 0],
+        [2.0, 0],
+        [2.5, 20],
+        [3.0, 50],
+        [4.0, 120],
+        [5.0, 220],
+        [6.0, 370],
+        [7.0, 530],
+        [8.0, 700],
+        [9.0, 850],
+        [10.0, 950],
+        [11.0, 1000],
+        [15.0, 1000],
+        [25.0, 1000],
+        [60.0, 1000],
+    ],
+}
+HROTOR = {  # VAWT H-rotor, cut_in=3.0
+    "id": "vawt_hrotor_2kw",
+    "name": "VAWT H-rotor 2 kW",
+    "type": "VAWT",
+    "diameter_m": 1.5,
+    "height_m": 2.0,
+    "rated_power_W": 2000,
+    "cut_in_ms": 3.0,
+    "rated_ms": 12.0,
+    "cut_out_ms": 45.0,
+    "mode": "parametric",
+    "cp": 0.32,
+    "losses": {"kw": 0.03, "km": 0.005, "ke": 0.015, "ke_t": 0.05, "kt": 0.03},
+}
 
 
 def test_power_below_cut_in_savonius():
@@ -189,6 +243,21 @@ def test_betz_limit_cp():
     turbine = {**_LOSSLESS_HAWT, "cp": 0.593}
     p = compute_power(turbine, 10.0, 1.225)
     assert p > 0
+
+
+def test_parametric_clamped_to_rated_power():
+    # With a low nameplate and strong wind, the cubic law would exceed rated;
+    # the estimate must be capped at rated_power_W.
+    turbine = {**_LOSSLESS_HAWT, "rated_power_W": 100}
+    assert compute_power(turbine, 20.0, 1.225) == pytest.approx(100.0)
+
+
+def test_parametric_not_clamped_below_rated():
+    # Below the nameplate the physical value is returned unchanged.
+    turbine = {**_LOSSLESS_HAWT, "rated_power_W": 100_000}
+    rho, v = 1.225, 10.0
+    expected = 0.5 * rho * v**3 * math.pi * 1.0**2
+    assert compute_power(turbine, v, rho) == pytest.approx(expected, rel=1e-9)
 
 
 # ─── compute_simulated_energy_kwh ────────────────────────────────────────────

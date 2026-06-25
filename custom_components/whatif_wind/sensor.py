@@ -19,10 +19,16 @@ from homeassistant.helpers.event import async_track_state_change_event
 from homeassistant.helpers.restore_state import RestoreEntity
 from homeassistant.helpers.update_coordinator import CoordinatorEntity
 
-from .const import CONF_AIR_DENSITY, CONF_WIND_ENTITY, CONF_WIND_UNIT, DOMAIN
+from .const import (
+    CONF_AIR_DENSITY,
+    CONF_CUSTOM_TURBINES,
+    CONF_WIND_ENTITY,
+    CONF_WIND_UNIT,
+    DOMAIN,
+)
 from .coordinator import WhatIfWindCoordinator
 from .power import compute_power, to_ms
-from .turbines import TURBINE_CATALOG
+from .turbines import resolve_turbines
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -35,7 +41,7 @@ async def async_setup_entry(
     coordinator: WhatIfWindCoordinator = hass.data[DOMAIN][entry.entry_id]
 
     entities: list[SensorEntity] = []
-    for turbine in TURBINE_CATALOG:
+    for turbine in resolve_turbines(entry.options.get(CONF_CUSTOM_TURBINES, [])):
         entities.append(WhatIfWindCurrentSensor(hass, entry, turbine))
         entities.append(WhatIfWindEnergySensor(coordinator, entry, turbine))
         entities.append(WhatIfWindAEPSensor(coordinator, entry, turbine))

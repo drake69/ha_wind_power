@@ -42,12 +42,30 @@ directory and restart.
 Add the integration from **Settings → Devices & Services → Add Integration → WhatIfWind**, then:
 
 1. **Sensor & environment** — pick your wind-speed sensor and the air density for your site.
-   The unit of measurement is auto-detected from the sensor; turbine models are loaded from the
-   built-in catalog (`turbines.py`).
+   The unit of measurement is auto-detected from the sensor.
 2. **Wind-speed unit** — only asked if the sensor doesn't expose a recognized unit.
 3. **Historical data** — choose how the 365-day series gets filled (InfluxDB backfill or start now).
 4. **InfluxDB connection** — if you chose InfluxDB: read-only access via the native HTTP API
    (Flux). Credentials are stored in the config entry; no extra libraries are installed.
+
+## Adding your turbine from Home Assistant
+
+There is no hardcoded turbine list: you add your own turbines from the UI, no file editing.
+
+Open **Settings → Devices & Services → WhatIfWind → Configure**, then **Add a turbine**:
+
+1. **Name & type** — give it a name and pick the rotor type (HAWT 3-blade, or VAWT
+   Savonius / Darrieus / H-rotor). The type sets a default power coefficient (Cp).
+2. **Geometry & nameplate** — provide the geometry (blade length for HAWT, or diameter × height
+   for VAWT) and the rated power. That's all the parametric model needs — it computes production
+   from the physics (swept area × Cp × air density × wind³), capped at the rated power.
+   - *Advanced (optional):* override Cp, cut-in/cut-out speeds.
+   - *Have the manufacturer's power curve?* Paste it in the **Power curve** field (one
+     `speed,power` pair per line, m/s and W) to use the more accurate tabular model instead.
+
+Use **Remove a turbine** from the same menu to delete custom turbines. Changes apply immediately
+(the entry reloads). Note: turbines added after the initial InfluxDB backfill are filled forward
+from that point on, not retroactively.
 
 ## Dependencies
 

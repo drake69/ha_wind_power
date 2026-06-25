@@ -1,94 +1,167 @@
-"""Validazione del catalogo turbine in turbines.py."""
+"""Tests for the turbine helpers in turbines.py."""
 
 from __future__ import annotations
 
 import pytest
 
-from custom_components.whatif_wind.turbines import TURBINE_CATALOG
+from custom_components.whatif_wind.const import (
+    CONF_T_BLADE_LENGTH,
+    CONF_T_CP,
+    CONF_T_CUT_IN,
+    CONF_T_CUT_OUT,
+    CONF_T_DIAMETER,
+    CONF_T_HEIGHT,
+    CONF_T_NAME,
+    CONF_T_POWER_CURVE,
+    CONF_T_RATED_POWER,
+    CONF_T_SUBTYPE,
+    CP_DEFAULTS,
+    SUBTYPE_HAWT_3BLADE,
+    SUBTYPE_VAWT_SAVONIUS,
+)
+from custom_components.whatif_wind.turbines import (
+    TURBINE_CATALOG,
+    build_turbine,
+    parse_power_curve,
+    resolve_turbines,
+    slugify,
+    unique_id,
+)
+
+# ─── catalog / resolve ────────────────────────────────────────────────────────
 
 
-def test_catalog_non_vuoto():
-    assert len(TURBINE_CATALOG) > 0
+def test_builtin_catalog_is_empty():
+    assert TURBINE_CATALOG == []
 
 
-@pytest.mark.parametrize("turbine", TURBINE_CATALOG, ids=lambda t: t["id"])
-def test_campi_obbligatori(turbine):
-    required = {
-        "id",
-        "name",
-        "type",
-        "mode",
-        "rated_power_W",
-        "cut_in_ms",
-        "rated_ms",
-        "cut_out_ms",
+def test_resolve_turbines_merges_custom():
+    custom = [{"id": "a"}, {"id": "b"}]
+    assert resolve_turbines(custom) == custom
+
+
+def test_resolve_turbines_handles_none():
+    assert resolve_turbines(None) == []
+
+
+# ─── slugify / unique_id ──────────────────────────────────────────────────────
+
+
+@pytest.mark.parametrize(
+    "name,expected",
+    [
+        ("Bornay Wind 13+", "bornay_wind_13"),
+        ("  SD6  ", "sd6"),
+        ("Éolienne ###", "olienne"),
+        ("", "turbine"),
+        ("---", "turbine"),
+    ],
+)
+def test_slugify(name, expected):
+    assert slugify(name) == expected
+
+
+def test_unique_id_no_collision():
+    assert unique_id("Turbine X", set()) == "turbine_x"
+
+
+def test_unique_id_disambiguates():
+    existing = {"turbine_x", "turbine_x_2"}
+    assert unique_id("Turbine X", existing) == "turbine_x_3"
+
+
+# ─── parse_power_curve ────────────────────────────────────────────────────────
+
+
+def test_parse_power_curve_comma_and_sorted():
+    curve = parse_power_curve("10,1000\n0,0\n5,400")
+    assert curve == [[0.0, 0.0], [5.0, 400.0], [10.0, 1000.0]]
+
+
+def test_parse_power_curve_whitespace_and_blank_lines():
+    curve = parse_power_curve("0 0\n\n  3   50  \n")
+    assert curve == [[0.0, 0.0], [3.0, 50.0]]
+
+
+@pytest.mark.parametrize("text", ["", "10,1000", "0,0\nabc,5", "0\n1,2"])
+def test_parse_power_curve_invalid(text):
+    with pytest.raises(ValueError):
+        parse_power_curve(text)
+
+
+# ─── build_turbine ────────────────────────────────────────────────────────────
+
+
+def _hawt_input(**over):
+    data = {
+        CONF_T_NAME: "My HAWT",
+        CONF_T_SUBTYPE: SUBTYPE_HAWT_3BLADE,
+        CONF_T_BLADE_LENGTH: 1.5,
+        CONF_T_RATED_POWER: 3000,
     }
-    missing = required - turbine.keys()
-    assert not missing, f"Campi mancanti: {missing}"
+    data.update(over)
+    return data
 
 
-@pytest.mark.parametrize("turbine", TURBINE_CATALOG, ids=lambda t: t["id"])
-def test_tipo_valido(turbine):
-    assert turbine["type"] in ("HAWT", "VAWT")
+def _vawt_input(**over):
+    data = {
+        CONF_T_NAME: "My VAWT",
+        CONF_T_SUBTYPE: SUBTYPE_VAWT_SAVONIUS,
+        CONF_T_DIAMETER: 0.8,
+        CONF_T_HEIGHT: 1.2,
+        CONF_T_RATED_POWER: 500,
+    }
+    data.update(over)
+    return data
 
 
-@pytest.mark.parametrize("turbine", TURBINE_CATALOG, ids=lambda t: t["id"])
-def test_modo_valido(turbine):
-    assert turbine["mode"] in ("parametric", "tabular")
+def test_build_hawt_parametric_defaults_cp():
+    t = build_turbine(_hawt_input())
+    assert t["type"] == "HAWT"
+    assert t["mode"] == "parametric"
+    assert t["blade_length_m"] == 1.5
+    assert t["rated_power_W"] == 3000
+    assert t["cp"] == CP_DEFAULTS[SUBTYPE_HAWT_3BLADE]
+    assert t["id"] == "my_hawt"
+    assert "losses" in t
 
 
-@pytest.mark.parametrize("turbine", TURBINE_CATALOG, ids=lambda t: t["id"])
-def test_velocità_ordinate(turbine):
-    assert turbine["cut_in_ms"] < turbine["rated_ms"] < turbine["cut_out_ms"], (
-        "Deve valere: cut_in < rated < cut_out"
-    )
+def test_build_vawt_parametric_geometry():
+    t = build_turbine(_vawt_input())
+    assert t["type"] == "VAWT"
+    assert t["diameter_m"] == 0.8
+    assert t["height_m"] == 1.2
+    assert t["cp"] == CP_DEFAULTS[SUBTYPE_VAWT_SAVONIUS]
 
 
-@pytest.mark.parametrize("turbine", TURBINE_CATALOG, ids=lambda t: t["id"])
-def test_potenza_nominale_positiva(turbine):
-    assert turbine["rated_power_W"] > 0
+def test_build_cp_override():
+    t = build_turbine(_hawt_input(**{CONF_T_CP: 0.25}))
+    assert t["cp"] == 0.25
 
 
-@pytest.mark.parametrize("turbine", TURBINE_CATALOG, ids=lambda t: t["id"])
-def test_geometria_hawt_parametrica(turbine):
-    if turbine["type"] == "HAWT" and turbine["mode"] == "parametric":
-        assert "blade_length_m" in turbine
-        assert turbine["blade_length_m"] > 0
+def test_build_tabular_when_curve_given():
+    t = build_turbine(_hawt_input(**{CONF_T_POWER_CURVE: "0,0\n10,3000"}))
+    assert t["mode"] == "tabular"
+    assert t["power_curve"] == [[0.0, 0.0], [10.0, 3000.0]]
+    assert "cp" not in t
 
 
-@pytest.mark.parametrize("turbine", TURBINE_CATALOG, ids=lambda t: t["id"])
-def test_geometria_vawt_parametrica(turbine):
-    if turbine["type"] == "VAWT" and turbine["mode"] == "parametric":
-        assert "diameter_m" in turbine and "height_m" in turbine
-        assert turbine["diameter_m"] > 0 and turbine["height_m"] > 0
+def test_build_unique_id_against_existing():
+    t = build_turbine(_hawt_input(), existing_ids={"my_hawt"})
+    assert t["id"] == "my_hawt_2"
 
 
-@pytest.mark.parametrize("turbine", TURBINE_CATALOG, ids=lambda t: t["id"])
-def test_cp_nel_range_betz(turbine):
-    if turbine["mode"] == "parametric":
-        assert 0 < turbine["cp"] <= 0.593, f"Cp={turbine['cp']} fuori dal range fisico (0, 0.593]"
-
-
-@pytest.mark.parametrize("turbine", TURBINE_CATALOG, ids=lambda t: t["id"])
-def test_perdite_nel_range(turbine):
-    if turbine["mode"] == "parametric":
-        for key, val in turbine.get("losses", {}).items():
-            assert 0.0 <= val < 1.0, f"Perdita {key}={val} fuori range [0, 1)"
-
-
-@pytest.mark.parametrize("turbine", TURBINE_CATALOG, ids=lambda t: t["id"])
-def test_curva_tabulare_valida(turbine):
-    if turbine["mode"] != "tabular":
-        return
-    curve = turbine["power_curve"]
-    assert len(curve) >= 2, "La curva deve avere almeno 2 punti"
-    speeds = [pt[0] for pt in curve]
-    powers = [pt[1] for pt in curve]
-    assert speeds == sorted(speeds), "I punti della curva devono essere ordinati per velocità"
-    assert all(p >= 0 for p in powers), "La potenza non può essere negativa"
-
-
-@pytest.mark.parametrize("turbine", TURBINE_CATALOG, ids=lambda t: t["id"])
-def test_id_univoci(turbine):
-    ids = [t["id"] for t in TURBINE_CATALOG]
-    assert ids.count(turbine["id"]) == 1, f"ID duplicato: {turbine['id']}"
+@pytest.mark.parametrize(
+    "over",
+    [
+        {CONF_T_NAME: "   "},
+        {CONF_T_SUBTYPE: "bogus"},
+        {CONF_T_RATED_POWER: 0},
+        {CONF_T_BLADE_LENGTH: 0},
+        {CONF_T_CP: 0.7},  # above Betz
+        {CONF_T_CUT_IN: 10, CONF_T_CUT_OUT: 5},
+    ],
+)
+def test_build_turbine_invalid(over):
+    with pytest.raises(ValueError):
+        build_turbine(_hawt_input(**over))

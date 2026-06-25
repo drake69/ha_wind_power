@@ -1,4 +1,4 @@
-"""Funzioni fisiche per la stima della potenza eolica."""
+"""Physical functions for wind power estimation."""
 
 from __future__ import annotations
 
@@ -9,18 +9,18 @@ from .const import MAX_GAP_SECONDS, UNIT_KMH, UNIT_KN, UNIT_MPH, UNIT_MS
 
 
 def to_ms(value: float, unit: str) -> float:
-    """Converte la velocità del vento in m/s."""
+    """Convert a wind speed to m/s."""
     if unit == UNIT_KMH:
         return value / 3.6
     if unit == UNIT_MPH:
         return value * 0.44704
     if unit == UNIT_KN:
         return value * 0.514444
-    return value  # già in m/s
+    return value  # already in m/s
 
 
-# Mappa le stringhe `unit_of_measurement` di HA verso le nostre unità interne.
-# Tollerante a varianti e maiuscole/minuscole.
+# Maps HA `unit_of_measurement` strings to our internal units.
+# Tolerant to variants and upper/lower case.
 _UOM_TO_UNIT = {
     "m/s": UNIT_MS,
     "ms": UNIT_MS,
@@ -39,10 +39,10 @@ _UOM_TO_UNIT = {
 
 def detect_internal_unit(uom: str | None) -> str | None:
     """
-    Deduce l'unità interna dall'attributo `unit_of_measurement` del sensore.
+    Derive the internal unit from the sensor's `unit_of_measurement` attribute.
 
-    Restituisce None se l'unità è assente o non riconosciuta: in quel caso
-    il config flow chiede all'utente di sceglierla a mano.
+    Returns None when the unit is absent or unrecognized: in that case the
+    config flow asks the user to pick it manually.
     """
     if not uom:
         return None
@@ -50,7 +50,7 @@ def detect_internal_unit(uom: str | None) -> str | None:
 
 
 def compute_power(turbine: dict[str, Any], wind_ms: float, air_density: float) -> float:
-    """Potenza stimata in watt per una data velocità del vento (m/s)."""
+    """Estimated power in watts for a given wind speed (m/s)."""
     if wind_ms < turbine.get("cut_in_ms", 0.0) or wind_ms > turbine.get("cut_out_ms", 999.0):
         return 0.0
 
@@ -75,11 +75,19 @@ def _power_parametric(turbine: dict[str, Any], wind_ms: float, air_density: floa
         * (1 - losses.get("ke_t", 0.0))
         * (1 - losses.get("kt", 0.0))
     )
-    return mu * p_wind
+    power = mu * p_wind
+
+    # Clamp to the nameplate rating: a real turbine regulates (pitch/stall) above
+    # its rated wind speed and never exceeds rated power. Without this cap the
+    # cubic law would overestimate production at high winds.
+    rated_w = turbine.get("rated_power_W", 0)
+    if rated_w and rated_w > 0:
+        return min(power, float(rated_w))
+    return power
 
 
 def _power_tabular(curve: list[list[float]], wind_ms: float) -> float:
-    """Interpolazione lineare sulla curva di potenza del produttore."""
+    """Linear interpolation over the manufacturer's power curve."""
     for i in range(len(curve) - 1):
         v0, p0 = curve[i]
         v1, p1 = curve[i + 1]
@@ -97,12 +105,12 @@ def compute_simulated_energy_kwh(
     wind_unit: str,
 ) -> float:
     """
-    Energia totale simulata in kWh su una lista di stati HA.
+    Total simulated energy in kWh over a list of HA states.
 
-    Usa la regola dei trapezi: per ogni intervallo tra due campioni consecutivi
-    si media la potenza agli estremi e la si moltiplica per la durata.
-    Intervalli > MAX_GAP_SECONDS vengono saltati perché il sensore era
-    probabilmente offline e il vento reale è ignoto.
+    Uses the trapezoidal rule: for each interval between two consecutive samples
+    the power at the endpoints is averaged and multiplied by the duration.
+    Intervals longer than MAX_GAP_SECONDS are skipped because the sensor was
+    probably offline and the real wind is unknown.
     """
     total_kwh = 0.0
     prev_time = None
