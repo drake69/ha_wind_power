@@ -1,11 +1,12 @@
 {
   "domain": "whatif_wind",
   "name": "WhatIfWind",
-  "version": "0.1.0",
-  "documentation": "https://github.com/drake69/ha_whatif_wind",
-  "requirements": [],
+  "codeowners": ["@drake69"],
+  "config_flow": true,
   "dependencies": ["recorder"],
-  "codeowners": [],
+  "documentation": "https://github.com/drake69/WhatIfWind",
   "iot_class": "local_polling",
-  "config_flow": true
+  "issue_tracker": "https://github.com/drake69/WhatIfWind/issues",
+  "requirements": [],
+  "version": "0.1.0"
 }

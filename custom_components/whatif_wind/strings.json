@@ -34,7 +34,7 @@
         "title": "InfluxDB connection",
         "description": "Read-only access via the native HTTP API (Flux). Credentials are stored in the config entry; no extra libraries are installed.",
         "data": {
-          "influx_url": "URL (e.g. http://homeassistant.local:8086)",
+          "influx_url": "URL",
           "influx_token": "API token",
           "influx_org": "Organization",
           "influx_bucket": "Bucket",
@@ -42,6 +42,7 @@
           "influx_field": "Field (wind speed)"
         },
         "data_description": {
+          "influx_url": "Base URL of your InfluxDB instance, e.g. http://homeassistant.local:8086",
           "influx_field": "The field holding the wind-speed value, in the unit you selected on the first step."
         }
       }
