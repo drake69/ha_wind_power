@@ -1,4 +1,5 @@
-"""Sensori Wind Power Estimator."""
+"""WhatIfWind sensors."""
+
 from __future__ import annotations
 
 import logging
@@ -18,10 +19,16 @@ from homeassistant.helpers.event import async_track_state_change_event
 from homeassistant.helpers.restore_state import RestoreEntity
 from homeassistant.helpers.update_coordinator import CoordinatorEntity
 
-from .const import CONF_AIR_DENSITY, CONF_WIND_ENTITY, CONF_WIND_UNIT, DOMAIN
-from .coordinator import WindPowerCoordinator
+from .const import (
+    CONF_AIR_DENSITY,
+    CONF_CUSTOM_TURBINES,
+    CONF_WIND_ENTITY,
+    CONF_WIND_UNIT,
+    DOMAIN,
+)
+from .coordinator import WhatIfWindCoordinator
 from .power import compute_power, to_ms
-from .turbines import TURBINE_CATALOG
+from .turbines import resolve_turbines
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -31,19 +38,19 @@ async def async_setup_entry(
     entry: ConfigEntry,
     async_add_entities: AddEntitiesCallback,
 ) -> None:
-    coordinator: WindPowerCoordinator = hass.data[DOMAIN][entry.entry_id]
+    coordinator: WhatIfWindCoordinator = hass.data[DOMAIN][entry.entry_id]
 
     entities: list[SensorEntity] = []
-    for turbine in TURBINE_CATALOG:
-        entities.append(WindPowerCurrentSensor(hass, entry, turbine))
-        entities.append(WindPowerEnergySensor(coordinator, entry, turbine))
-        entities.append(WindPowerAEPSensor(coordinator, entry, turbine))
-        entities.append(WindPowerCapacityFactorSensor(coordinator, entry, turbine))
+    for turbine in resolve_turbines(entry.options.get(CONF_CUSTOM_TURBINES, [])):
+        entities.append(WhatIfWindCurrentSensor(hass, entry, turbine))
+        entities.append(WhatIfWindEnergySensor(coordinator, entry, turbine))
+        entities.append(WhatIfWindAEPSensor(coordinator, entry, turbine))
+        entities.append(WhatIfWindCapacityFactorSensor(coordinator, entry, turbine))
 
     async_add_entities(entities)
 
-    # Primo aggiornamento; errori non bloccano il setup (dati storici potrebbero
-    # essere vuoti al primo avvio)
+    # First refresh; errors must not block setup (historical data may be empty
+    # on the very first start).
     await coordinator.async_config_entry_first_refresh()
 
 
@@ -57,17 +64,20 @@ def _device_info(entry: ConfigEntry, turbine: dict[str, Any]) -> DeviceInfo:
     )
 
 
-# ─── Potenza istantanea ──────────────────────────────────────────────────────
+# ─── Instantaneous power ──────────────────────────────────────────────────────
 
-class WindPowerCurrentSensor(SensorEntity):
+
+class WhatIfWindCurrentSensor(SensorEntity):
     """
-    Potenza stimata in tempo reale (W).
+    Real-time estimated power (W).
 
-    Si aggiorna ogni volta che cambia lo stato del sensore vento.
-    Valore puramente orientativo: mostra quanto starebbe producendo
-    la turbina in questo momento con il vento corrente.
+    Updates every time the wind sensor state changes. Purely indicative: it
+    shows how much the turbine would be producing right now with the current
+    wind.
     """
 
+    _attr_has_entity_name = True
+    _attr_translation_key = "current_power"
     _attr_device_class = SensorDeviceClass.POWER
     _attr_state_class = SensorStateClass.MEASUREMENT
     _attr_native_unit_of_measurement = UnitOfPower.WATT
@@ -82,17 +92,16 @@ class WindPowerCurrentSensor(SensorEntity):
         self._wind_unit: str = entry.data[CONF_WIND_UNIT]
         self._air_density: float = entry.data[CONF_AIR_DENSITY]
         self._attr_unique_id = f"{entry.entry_id}_{turbine['id']}_power"
-        self._attr_name = f"{turbine['name']} — Potenza attuale"
         self._attr_native_value: float | None = None
         self._attr_device_info = _device_info(entry, turbine)
 
     async def async_added_to_hass(self) -> None:
-        # Inizializza dal valore corrente
+        # Initialize from the current value.
         state = self.hass.states.get(self._wind_entity_id)
         if state:
             self._update_from_wind_state(state.state)
 
-        # Ascolta i cambiamenti futuri
+        # Listen for future changes.
         self.async_on_remove(
             async_track_state_change_event(
                 self.hass,
@@ -118,17 +127,19 @@ class WindPowerCurrentSensor(SensorEntity):
         self._attr_native_value = round(compute_power(self._turbine, wind_ms, self._air_density), 1)
 
 
-# ─── Sensori giornalieri (via coordinator) ───────────────────────────────────
+# ─── Daily sensors (via coordinator) ──────────────────────────────────────────
+
 
 class _DailyCoordinatorSensor(CoordinatorEntity, RestoreEntity, SensorEntity):
-    """Base per i sensori aggiornati una volta al giorno dal coordinator."""
+    """Base class for sensors updated once a day by the coordinator."""
 
+    _attr_has_entity_name = True
     _attr_should_poll = False
-    _turbine_data_key: str  # chiave nel dict restituito dal coordinator
+    _turbine_data_key: str  # key in the dict returned by the coordinator
 
     def __init__(
         self,
-        coordinator: WindPowerCoordinator,
+        coordinator: WhatIfWindCoordinator,
         entry: ConfigEntry,
         turbine: dict[str, Any],
     ) -> None:
@@ -139,7 +150,7 @@ class _DailyCoordinatorSensor(CoordinatorEntity, RestoreEntity, SensorEntity):
 
     async def async_added_to_hass(self) -> None:
         await super().async_added_to_hass()
-        # Ripristina l'ultimo valore noto per evitare "unavailable" al riavvio
+        # Restore the last known value to avoid "unavailable" after a restart.
         if last_state := await self.async_get_last_state():
             try:
                 self._attr_native_value = float(last_state.state)
@@ -155,16 +166,18 @@ class _DailyCoordinatorSensor(CoordinatorEntity, RestoreEntity, SensorEntity):
         self.async_write_ha_state()
 
 
-class WindPowerEnergySensor(_DailyCoordinatorSensor):
+class WhatIfWindEnergySensor(_DailyCoordinatorSensor):
     """
-    Energia totale simulata (kWh) dall'inizio delle misurazioni.
+    Estimated potential energy (kWh) over the period covered by the wind data.
 
-    Risponde alla domanda: «quanta energia avrebbe prodotto questa turbina
-    se fosse stata installata quando ho iniziato a misurare il vento?»
+    This is NOT real energy: it is an estimate of how much energy this turbine
+    *would* have produced at your site. That is why it does not expose
+    `device_class=energy` and cannot be used as a meter in HA's energy
+    dashboard.
     """
 
     _turbine_data_key = "energy_kwh"
-    _attr_device_class = SensorDeviceClass.ENERGY
+    _attr_translation_key = "simulated_energy"
     _attr_state_class = SensorStateClass.MEASUREMENT
     _attr_native_unit_of_measurement = UnitOfEnergy.KILO_WATT_HOUR
     _attr_icon = "mdi:lightning-bolt-circle"
@@ -172,25 +185,24 @@ class WindPowerEnergySensor(_DailyCoordinatorSensor):
     def __init__(self, coordinator, entry, turbine) -> None:
         super().__init__(coordinator, entry, turbine)
         self._attr_unique_id = f"{entry.entry_id}_{turbine['id']}_energy"
-        self._attr_name = f"{turbine['name']} — Energia simulata"
         self._attr_native_value: float | None = None
 
     @property
     def extra_state_attributes(self) -> dict[str, Any]:
         data = (self.coordinator.data or {}).get(self._turbine["id"], {})
-        return {"giorni_misurati": data.get("days_measured")}
+        return {"days_measured": data.get("days_measured")}
 
 
-class WindPowerAEPSensor(_DailyCoordinatorSensor):
+class WhatIfWindAEPSensor(_DailyCoordinatorSensor):
     """
-    AEP stimato (kWh/anno) — proiezione annua dell'energia simulata.
+    Estimated AEP (kWh/year) — annualized projection of the simulated energy.
 
-    Formula: energia_simulata_kwh / giorni_misurati × 365.
-    La stima migliora all'aumentare dei giorni di misurazione.
+    Formula: simulated_energy_kwh / days_measured × 365.
+    The estimate improves as the number of measured days grows.
     """
 
     _turbine_data_key = "aep_kwh"
-    _attr_device_class = SensorDeviceClass.ENERGY
+    _attr_translation_key = "estimated_aep"
     _attr_state_class = SensorStateClass.MEASUREMENT
     _attr_native_unit_of_measurement = UnitOfEnergy.KILO_WATT_HOUR
     _attr_icon = "mdi:chart-line"
@@ -198,25 +210,25 @@ class WindPowerAEPSensor(_DailyCoordinatorSensor):
     def __init__(self, coordinator, entry, turbine) -> None:
         super().__init__(coordinator, entry, turbine)
         self._attr_unique_id = f"{entry.entry_id}_{turbine['id']}_aep"
-        self._attr_name = f"{turbine['name']} — AEP stimato"
         self._attr_native_value: float | None = None
 
     @property
     def extra_state_attributes(self) -> dict[str, Any]:
         data = (self.coordinator.data or {}).get(self._turbine["id"], {})
-        return {"giorni_misurati": data.get("days_measured")}
+        return {"days_measured": data.get("days_measured")}
 
 
-class WindPowerCapacityFactorSensor(_DailyCoordinatorSensor):
+class WhatIfWindCapacityFactorSensor(_DailyCoordinatorSensor):
     """
-    Capacity factor (%) nel periodo misurato.
+    Capacity factor (%) over the measured period.
 
-    Rapporto tra energia simulata e massimo teorico (turbina alla potenza
-    nominale per tutta la durata del periodo). Indica quanto è sfruttabile
-    il vento del sito per questo modello.
+    Ratio between the simulated energy and the theoretical maximum (turbine at
+    rated power for the whole period). Indicates how usable the site's wind is
+    for this model.
     """
 
     _turbine_data_key = "capacity_factor_pct"
+    _attr_translation_key = "capacity_factor"
     _attr_state_class = SensorStateClass.MEASUREMENT
     _attr_native_unit_of_measurement = "%"
     _attr_icon = "mdi:gauge"
@@ -224,5 +236,4 @@ class WindPowerCapacityFactorSensor(_DailyCoordinatorSensor):
     def __init__(self, coordinator, entry, turbine) -> None:
         super().__init__(coordinator, entry, turbine)
         self._attr_unique_id = f"{entry.entry_id}_{turbine['id']}_capacity_factor"
-        self._attr_name = f"{turbine['name']} — Capacity factor"
         self._attr_native_value: float | None = None

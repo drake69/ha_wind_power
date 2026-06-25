@@ -14,5 +14,9 @@ wheels/
 secrets/
 *.db
 
+# Agent / task-manager working dirs (mai nel repo)
+.coding_agent/
+.sestante/
+
 # OS artifacts
 .DS_Store

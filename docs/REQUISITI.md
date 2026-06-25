@@ -1,4 +1,4 @@
-# Requisiti — wind_power HACS Integration
+# Requisiti — whatif_wind HACS Integration
 
 ## Obiettivo
 
@@ -10,12 +10,32 @@ Non si tratta di misurare energia reale: la turbina non esiste ancora. Si tratta
 
 ## Comportamento dell'integrazione
 
-Ogni giorno (trigger periodico configurabile), l'integrazione:
+L'obiettivo è una **serie di produzione stimata giorno/mese/anno** su 365 giorni.
+Due percorsi alimentano la *stessa* serie (scelti nel config flow):
 
-1. Legge **tutta la storia disponibile** della velocità del vento dal recorder di Home Assistant, dall'inizio delle misurazioni.
-2. Applica la **curva di potenza** di ciascun modello di turbina a ogni campione storico, tenendo conto di velocità di cut-in, velocità nominale e velocità di cut-out.
-3. Integra la potenza nel tempo per ottenere l'**energia simulata totale** (kWh).
-4. Calcola la **stima AEP** (Annual Energy Production) annualizzando l'energia simulata sui giorni effettivamente misurati.
+- **Ho lo storico (InfluxDB)** → *analisi retrospettiva*: l'integrazione legge fino a
+  365 giorni di vento da InfluxDB e riempie la serie **all'indietro**, completa da subito.
+- **Non ho pregressi** → *accumulo in avanti*: parte dal logger e, a ogni ciclo, estende
+  la serie con i nuovi dati del recorder; il quadro annuale si completa nel tempo.
+
+La serie vive come **long-term statistics esterne** di HA (`whatif_wind:…`): compatte
+(una riga per ora), aggregate automaticamente ora→giorno→mese→anno, e popolabili sia
+retrodatate (backfill) sia in append. Uno **Store** persiste il cursore temporale e i
+totali cumulativi, così l'accumulo riprende senza ricalcolare la storia e senza
+dipendere dalla retention del recorder oltre il gap fra due cicli.
+
+Ogni ciclo, per ciascun modello di turbina, l'integrazione:
+
+1. Applica la **curva di potenza** a ogni campione (cut-in / nominale / cut-out).
+2. Integra la potenza **a livello orario** e somma le ore (mai mediare il vento a
+   livello giornaliero e poi elevare al cubo: la potenza va come `v³`, convessa, e si
+   sottostimerebbe).
+3. Aggiorna la serie statistics e i totali cumulativi.
+4. Calcola la **stima AEP** annualizzando l'energia stimata sui giorni coperti.
+
+> ⚠️ È una **stima di produzione potenziale, non energia reale**. Per questo i sensori
+> in kWh non espongono `device_class=energy` e la serie non è un contatore: **non va
+> nella dashboard energia di HA**.
 
 ---
 
@@ -63,17 +83,27 @@ I Savonius sono a trascinamento (drag-based): Cp basso (~0.15–0.20) ma cut-in 
 
 ## Configurazione (config flow HA)
 
-Al momento dell'aggiunta dell'integrazione da HA → Dispositivi e servizi, l'utente configura:
+Config flow a step, dichiarativo e informativo:
 
-- **Entity ID sensore vento** — il sensore di velocità dell'anemometro già presente in HA
-- **Unità** — km/h oppure m/s
-- **Densità aria** — kg/m³ (default 1.225, modificabile per altitudine/temperatura)
+1. **`user`** — Entity ID sensore vento + densità aria (kg/m³, default 1.225). L'**unità**
+   viene **dedotta** dall'attributo `unit_of_measurement` del sensore (m/s, km/h, mph, kn).
+2. **`unit`** *(solo fallback)* — appare **solo** se HA non espone un'unità riconosciuta:
+   l'utente la sceglie a mano.
+3. **`history`** — «Hai uno storico locale?»: *Sì, in InfluxDB* → analisi retrospettiva;
+   *No, parto da adesso* → accumulo in avanti.
+4. **`influxdb`** *(solo se InfluxDB)* — URL, token, org, bucket, measurement, field.
+   Lettura via HTTP API nativa (Flux), nessuna libreria aggiuntiva installata.
+
+Alla rimozione dell'integrazione (`async_remove_entry`) la pulizia è completa: le
+statistics esterne e lo Store vengono cancellati, niente dati orfani.
 
 ---
 
 ## Cosa l'integrazione NON fa
 
 - Non misura energia reale prodotta da una turbina esistente.
+- Non alimenta la **dashboard energia** di HA: la produzione è stimata, non reale.
 - Non controlla inverter, caricabatterie o altri dispositivi.
 - Non invia comandi o automazioni.
-- Non mostra grafici propri: la visualizzazione storica è delegata ai tool nativi di HA (Energy dashboard, Grafana, ecc.).
+- Non mostra grafici propri: la serie giorno/mese/anno è esposta come long-term
+  statistics, da visualizzare con la **Statistics Graph card**, ApexCharts o Grafana.

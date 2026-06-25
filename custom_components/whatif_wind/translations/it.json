@@ -1,0 +1,111 @@
+{
+  "config": {
+    "step": {
+      "user": {
+        "title": "Stima produzione eolica",
+        "description": "Configura il sensore di velocità del vento e i parametri ambientali. L'unità di misura viene dedotta dal sensore; i modelli di turbina vengono caricati dal catalogo in turbines.py.",
+        "data": {
+          "wind_entity_id": "Sensore velocità vento",
+          "air_density": "Densità aria (kg/m³)"
+        },
+        "data_description": {
+          "wind_entity_id": "Il tuo anemometro locale — cattura altezza di mozzo, ostacoli vicini e rugosità del terreno del tuo sito specifico.",
+          "air_density": "1,225 kg/m³ a livello del mare, 15 °C. Abbassala in quota o con climi caldi."
+        }
+      },
+      "unit": {
+        "title": "Unità velocità vento",
+        "description": "Il sensore non espone un'unità di misura riconosciuta. Indica quella che riporta.",
+        "data": {
+          "wind_unit": "Unità di misura del sensore"
+        }
+      },
+      "history": {
+        "title": "Dati storici",
+        "description": "In entrambi i casi l'obiettivo è lo stesso: produzione giornaliera / mensile / annuale su 365 giorni. Cambia solo come si riempie la serie.",
+        "data": {
+          "backfill_source": "Hai già uno storico locale dei dati di vento?"
+        },
+        "data_description": {
+          "backfill_source": "InfluxDB → analisi retrospettiva: i 365 giorni passati vengono riempiti all'indietro e il grafico è completo da subito. Parto da adesso → la serie si riempie in avanti dal tuo logger e cresce giorno per giorno fino a coprire l'anno."
+        }
+      },
+      "influxdb": {
+        "title": "Connessione InfluxDB",
+        "description": "Accesso in sola lettura via HTTP API nativa (Flux). Le credenziali sono salvate nella config entry; nessuna libreria aggiuntiva viene installata.",
+        "data": {
+          "influx_url": "URL",
+          "influx_token": "Token API",
+          "influx_org": "Organizzazione",
+          "influx_bucket": "Bucket",
+          "influx_measurement": "Measurement",
+          "influx_field": "Field (velocità vento)"
+        },
+        "data_description": {
+          "influx_url": "URL base della tua istanza InfluxDB, comprensivo di schema, host e porta (la porta predefinita di InfluxDB è 8086).",
+          "influx_field": "Il field che contiene la velocità del vento, nell'unità scelta al primo step."
+        }
+      }
+    }
+  },
+  "entity": {
+    "sensor": {
+      "current_power": { "name": "Potenza attuale" },
+      "simulated_energy": { "name": "Energia simulata" },
+      "estimated_aep": { "name": "AEP stimato" },
+      "capacity_factor": { "name": "Capacity factor" }
+    }
+  },
+  "options": {
+    "step": {
+      "init": {
+        "title": "Turbine WhatIfWind",
+        "menu_options": {
+          "add": "Aggiungi una turbina",
+          "remove": "Rimuovi una turbina"
+        }
+      },
+      "add": {
+        "title": "Aggiungi una turbina",
+        "data": {
+          "name": "Nome",
+          "subtype": "Tipo"
+        },
+        "data_description": {
+          "name": "Un'etichetta per questa turbina; diventa il nome del dispositivo.",
+          "subtype": "Imposta l'asse del rotore e un coefficiente di potenza (Cp) di default. Dopo inserisci solo la geometria."
+        }
+      },
+      "add_geometry": {
+        "title": "Geometria della turbina",
+        "data": {
+          "blade_length_m": "Lunghezza pala (raggio rotore, m)",
+          "diameter_m": "Diametro rotore (m)",
+          "height_m": "Altezza rotore (m)",
+          "rated_power_W": "Potenza nominale (W)",
+          "cp": "Coefficiente di potenza Cp (avanzato)",
+          "cut_in_ms": "Velocità di cut-in (m/s, avanzato)",
+          "cut_out_ms": "Velocità di cut-out (m/s, avanzato)",
+          "power_curve": "Curva di potenza (avanzato)"
+        },
+        "data_description": {
+          "rated_power_W": "Potenza di targa; la stima viene limitata a questo valore.",
+          "cp": "Precompilato dal tipo scelto. Abbassalo per rotori meno efficienti; il massimo fisico è 0,593.",
+          "power_curve": "Opzionale. Una coppia 'velocità,potenza' per riga (m/s, W) dalla scheda tecnica. Se compilata, sostituisce il modello parametrico."
+        }
+      },
+      "remove": {
+        "title": "Rimuovi turbine",
+        "data": {
+          "remove_ids": "Turbine da rimuovere"
+        }
+      }
+    },
+    "error": {
+      "invalid_turbine": "Dati turbina non validi. Controlla geometria, potenza nominale e (se usata) la curva di potenza."
+    },
+    "abort": {
+      "no_custom_turbines": "Non ci sono ancora turbine personalizzate da rimuovere."
+    }
+  }
+}
