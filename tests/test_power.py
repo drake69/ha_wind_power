@@ -10,6 +10,7 @@ import pytest
 from custom_components.wind_power.power import (
     compute_power,
     compute_simulated_energy_kwh,
+    detect_internal_unit,
     to_ms,
 )
 from custom_components.wind_power.turbines import TURBINE_CATALOG
@@ -26,9 +27,28 @@ def test_to_ms_mph():
     # 22.3694 mph ≈ 10 m/s
     assert to_ms(22.3694, "mph") == pytest.approx(10.0, rel=1e-4)
 
+def test_to_ms_knots():
+    # 19.4384 kn ≈ 10 m/s
+    assert to_ms(19.4384, "kn") == pytest.approx(10.0, rel=1e-4)
+
 def test_to_ms_zero():
-    for unit in ("ms", "kmh", "mph"):
+    for unit in ("ms", "kmh", "mph", "kn"):
         assert to_ms(0.0, unit) == 0.0
+
+
+# ─── detect_internal_unit ────────────────────────────────────────────────────
+
+@pytest.mark.parametrize("uom,expected", [
+    ("m/s", "ms"), ("km/h", "kmh"), ("kph", "kmh"), ("KMH", "kmh"),
+    ("mph", "mph"), ("mi/h", "mph"), ("kn", "kn"), ("knots", "kn"),
+    (" km/h ", "kmh"),
+])
+def test_detect_internal_unit_known(uom, expected):
+    assert detect_internal_unit(uom) == expected
+
+@pytest.mark.parametrize("uom", [None, "", "Bft", "beaufort", "ft/s", "garbage"])
+def test_detect_internal_unit_unknown(uom):
+    assert detect_internal_unit(uom) is None
 
 
 # ─── compute_power: condizioni di confine ────────────────────────────────────

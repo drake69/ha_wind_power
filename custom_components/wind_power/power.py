@@ -4,7 +4,7 @@ from __future__ import annotations
 import math
 from typing import Any
 
-from .const import MAX_GAP_SECONDS, UNIT_KMH, UNIT_MPH
+from .const import MAX_GAP_SECONDS, UNIT_KMH, UNIT_KN, UNIT_MPH, UNIT_MS
 
 
 def to_ms(value: float, unit: str) -> float:
@@ -13,7 +13,39 @@ def to_ms(value: float, unit: str) -> float:
         return value / 3.6
     if unit == UNIT_MPH:
         return value * 0.44704
+    if unit == UNIT_KN:
+        return value * 0.514444
     return value  # già in m/s
+
+
+# Mappa le stringhe `unit_of_measurement` di HA verso le nostre unità interne.
+# Tollerante a varianti e maiuscole/minuscole.
+_UOM_TO_UNIT = {
+    "m/s": UNIT_MS,
+    "ms": UNIT_MS,
+    "km/h": UNIT_KMH,
+    "kmh": UNIT_KMH,
+    "kph": UNIT_KMH,
+    "mph": UNIT_MPH,
+    "mi/h": UNIT_MPH,
+    "kn": UNIT_KN,
+    "kt": UNIT_KN,
+    "kts": UNIT_KN,
+    "knot": UNIT_KN,
+    "knots": UNIT_KN,
+}
+
+
+def detect_internal_unit(uom: str | None) -> str | None:
+    """
+    Deduce l'unità interna dall'attributo `unit_of_measurement` del sensore.
+
+    Restituisce None se l'unità è assente o non riconosciuta: in quel caso
+    il config flow chiede all'utente di sceglierla a mano.
+    """
+    if not uom:
+        return None
+    return _UOM_TO_UNIT.get(uom.strip().lower())
 
 
 def compute_power(turbine: dict[str, Any], wind_ms: float, air_density: float) -> float:

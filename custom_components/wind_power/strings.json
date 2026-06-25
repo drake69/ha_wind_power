@@ -3,11 +3,46 @@
     "step": {
       "user": {
         "title": "Wind Power Estimator",
-        "description": "Configura il sensore di velocità del vento e i parametri ambientali. I modelli di turbina vengono caricati dal catalogo in turbines.py.",
+        "description": "Configure the wind-speed sensor and the environmental parameters. The unit of measurement is detected from the sensor; turbine models are loaded from the catalog in turbines.py.",
         "data": {
-          "wind_entity_id": "Sensore velocità vento",
-          "wind_unit": "Unità di misura del sensore",
-          "air_density": "Densità aria (kg/m³)"
+          "wind_entity_id": "Wind-speed sensor",
+          "air_density": "Air density (kg/m³)"
+        },
+        "data_description": {
+          "wind_entity_id": "Your local anemometer — it captures hub height, nearby obstacles and terrain roughness of your specific site.",
+          "air_density": "1.225 kg/m³ at sea level, 15 °C. Lower it at higher altitude or warmer climates."
+        }
+      },
+      "unit": {
+        "title": "Wind-speed unit",
+        "description": "The sensor does not expose a recognized unit of measurement. Please pick the one it reports.",
+        "data": {
+          "wind_unit": "Sensor unit of measurement"
+        }
+      },
+      "history": {
+        "title": "Historical data",
+        "description": "Same goal either way: daily / monthly / annual production over 365 days. The only difference is how the series gets filled.",
+        "data": {
+          "backfill_source": "Do you already have a local wind-data history?"
+        },
+        "data_description": {
+          "backfill_source": "InfluxDB → retrospective analysis: the past 365 days are filled backwards and the chart is complete immediately. Start now → the series is filled forwards from your logger and grows day by day until it covers the year."
+        }
+      },
+      "influxdb": {
+        "title": "InfluxDB connection",
+        "description": "Read-only access via the native HTTP API (Flux). Credentials are stored in the config entry; no extra libraries are installed.",
+        "data": {
+          "influx_url": "URL (e.g. http://homeassistant.local:8086)",
+          "influx_token": "API token",
+          "influx_org": "Organization",
+          "influx_bucket": "Bucket",
+          "influx_measurement": "Measurement",
+          "influx_field": "Field (wind speed)"
+        },
+        "data_description": {
+          "influx_field": "The field holding the wind-speed value, in the unit you selected on the first step."
         }
       }
     }

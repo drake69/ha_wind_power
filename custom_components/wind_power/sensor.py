@@ -157,14 +157,14 @@ class _DailyCoordinatorSensor(CoordinatorEntity, RestoreEntity, SensorEntity):
 
 class WindPowerEnergySensor(_DailyCoordinatorSensor):
     """
-    Energia totale simulata (kWh) dall'inizio delle misurazioni.
+    Energia potenziale stimata (kWh) sul periodo coperto dai dati di vento.
 
-    Risponde alla domanda: «quanta energia avrebbe prodotto questa turbina
-    se fosse stata installata quando ho iniziato a misurare il vento?»
+    NON è energia reale: è una valutazione di quanta energia *avrebbe* prodotto
+    questa turbina sul tuo sito. Per questo non espone `device_class=energy` e
+    non è candidabile come contatore nella dashboard energia di HA.
     """
 
     _turbine_data_key = "energy_kwh"
-    _attr_device_class = SensorDeviceClass.ENERGY
     _attr_state_class = SensorStateClass.MEASUREMENT
     _attr_native_unit_of_measurement = UnitOfEnergy.KILO_WATT_HOUR
     _attr_icon = "mdi:lightning-bolt-circle"
@@ -190,7 +190,6 @@ class WindPowerAEPSensor(_DailyCoordinatorSensor):
     """
 
     _turbine_data_key = "aep_kwh"
-    _attr_device_class = SensorDeviceClass.ENERGY
     _attr_state_class = SensorStateClass.MEASUREMENT
     _attr_native_unit_of_measurement = UnitOfEnergy.KILO_WATT_HOUR
     _attr_icon = "mdi:chart-line"

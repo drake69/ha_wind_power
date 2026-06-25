@@ -3,11 +3,46 @@
     "step": {
       "user": {
         "title": "Stima produzione eolica",
-        "description": "Configura il sensore di velocità del vento e i parametri ambientali. I modelli di turbina vengono caricati dal catalogo in turbines.py.",
+        "description": "Configura il sensore di velocità del vento e i parametri ambientali. L'unità di misura viene dedotta dal sensore; i modelli di turbina vengono caricati dal catalogo in turbines.py.",
         "data": {
           "wind_entity_id": "Sensore velocità vento",
-          "wind_unit": "Unità di misura del sensore",
           "air_density": "Densità aria (kg/m³)"
+        },
+        "data_description": {
+          "wind_entity_id": "Il tuo anemometro locale — cattura altezza di mozzo, ostacoli vicini e rugosità del terreno del tuo sito specifico.",
+          "air_density": "1,225 kg/m³ a livello del mare, 15 °C. Abbassala in quota o con climi caldi."
+        }
+      },
+      "unit": {
+        "title": "Unità velocità vento",
+        "description": "Il sensore non espone un'unità di misura riconosciuta. Indica quella che riporta.",
+        "data": {
+          "wind_unit": "Unità di misura del sensore"
+        }
+      },
+      "history": {
+        "title": "Dati storici",
+        "description": "In entrambi i casi l'obiettivo è lo stesso: produzione giornaliera / mensile / annuale su 365 giorni. Cambia solo come si riempie la serie.",
+        "data": {
+          "backfill_source": "Hai già uno storico locale dei dati di vento?"
+        },
+        "data_description": {
+          "backfill_source": "InfluxDB → analisi retrospettiva: i 365 giorni passati vengono riempiti all'indietro e il grafico è completo da subito. Parto da adesso → la serie si riempie in avanti dal tuo logger e cresce giorno per giorno fino a coprire l'anno."
+        }
+      },
+      "influxdb": {
+        "title": "Connessione InfluxDB",
+        "description": "Accesso in sola lettura via HTTP API nativa (Flux). Le credenziali sono salvate nella config entry; nessuna libreria aggiuntiva viene installata.",
+        "data": {
+          "influx_url": "URL (es. http://homeassistant.local:8086)",
+          "influx_token": "Token API",
+          "influx_org": "Organizzazione",
+          "influx_bucket": "Bucket",
+          "influx_measurement": "Measurement",
+          "influx_field": "Field (velocità vento)"
+        },
+        "data_description": {
+          "influx_field": "Il field che contiene la velocità del vento, nell'unità scelta al primo step."
         }
       }
     }
