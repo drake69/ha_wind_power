@@ -12,6 +12,7 @@ from custom_components.whatif_wind.power import (
     compute_power,
     compute_simulated_energy_kwh,
     detect_internal_unit,
+    energy_increment_kwh,
     to_ms,
 )
 
@@ -359,3 +360,39 @@ def test_invalid_state_skipped():
 def test_single_state_produces_no_energy():
     states = [_state(10.0, T0)]
     assert compute_simulated_energy_kwh(states, HROTOR, 1.225, "ms") == 0.0
+
+
+# ─── energy_increment_kwh (live accumulation building block) ──────────────────
+
+
+def test_increment_constant_power_one_hour():
+    # 500 W averaged over 3600 s = 0.5 kWh
+    assert energy_increment_kwh(500.0, 500.0, 3600.0) == pytest.approx(0.5)
+
+
+def test_increment_averages_endpoints():
+    # Trapezoid: (200 + 400) / 2 = 300 W over 3600 s = 0.3 kWh
+    assert energy_increment_kwh(200.0, 400.0, 3600.0) == pytest.approx(0.3)
+
+
+def test_increment_gap_too_long_is_zero():
+    # dt beyond MAX_GAP_SECONDS (7200 s) → discarded
+    assert energy_increment_kwh(500.0, 500.0, 7201.0) == 0.0
+
+
+def test_increment_gap_at_threshold_is_counted():
+    assert energy_increment_kwh(500.0, 500.0, 7200.0) > 0.0
+
+
+def test_increment_non_positive_dt_is_zero():
+    # Out-of-order or duplicate timestamps must never subtract energy.
+    assert energy_increment_kwh(500.0, 500.0, 0.0) == 0.0
+    assert energy_increment_kwh(500.0, 500.0, -10.0) == 0.0
+
+
+def test_increment_is_never_negative():
+    # Power is always ≥ 0, so any valid interval yields a non-negative increment:
+    # this is what keeps the live energy total monotonic.
+    for dt in (1.0, 60.0, 3600.0, 7200.0):
+        assert energy_increment_kwh(0.0, 0.0, dt) >= 0.0
+        assert energy_increment_kwh(1000.0, 0.0, dt) >= 0.0
