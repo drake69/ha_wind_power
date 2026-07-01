@@ -98,6 +98,21 @@ def _power_tabular(curve: list[list[float]], wind_ms: float) -> float:
     return float(curve[-1][1])
 
 
+def energy_increment_kwh(prev_power_w: float, power_w: float, dt_s: float) -> float:
+    """
+    Trapezoidal energy (kWh) produced over a single interval.
+
+    Averages the power at the two endpoints over the elapsed time. Returns 0 for
+    non-positive intervals or gaps longer than MAX_GAP_SECONDS (the sensor was
+    probably offline and the real wind is unknown). Being always ≥ 0, this is the
+    building block that keeps any running total monotonically non-decreasing.
+    """
+    if not 0 < dt_s <= MAX_GAP_SECONDS:
+        return 0.0
+    avg_w = (prev_power_w + power_w) / 2.0
+    return avg_w * dt_s / 3_600_000.0
+
+
 def compute_simulated_energy_kwh(
     states: list,
     turbine: dict[str, Any],
@@ -129,9 +144,7 @@ def compute_simulated_energy_kwh(
 
         if prev_time is not None:
             dt_s = (state.last_changed - prev_time).total_seconds()
-            if 0 < dt_s <= MAX_GAP_SECONDS:
-                avg_w = (prev_power_w + power_w) / 2.0
-                total_kwh += avg_w * dt_s / 3_600_000.0
+            total_kwh += energy_increment_kwh(prev_power_w, power_w, dt_s)
 
         prev_time = state.last_changed
         prev_power_w = power_w
