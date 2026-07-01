@@ -239,7 +239,9 @@ class WhatIfWindEnergySensor(RestoreEntity, SensorEntity):
             self._prev_time = None
             self._prev_power_w = 0.0
             return
-        self._prev_power_w = compute_power(self._turbine, to_ms(raw, self._wind_unit), self._air_density)
+        self._prev_power_w = compute_power(
+            self._turbine, to_ms(raw, self._wind_unit), self._air_density
+        )
         self._prev_time = when
 
     @callback
